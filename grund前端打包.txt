@@ -1,0 +1,51 @@
+
+http://fex.baidu.com/ueditor/#dev-bale_width_grunt
+
+http://www.gruntjs.net/getting-started
+
+下载 nodejs
+http://www.nodejs.org/
+
+安装到d盘
+执行一次
+
+打开cmd 
+进入 e:\git\ueditor 
+//打开git bash
+安装依赖
+
+npm install
+
+在继续学习前，你需要先将Grunt命令行（CLI）安装到全局环境中。安装时可能需要使用sudo（针对OSX、*nix、BSD等系统中）权限或者作为管理员（对于Windows环境）来执行以下命令。
+注意，安装grunt-cli并不等于安装了 Grunt！Grunt CLI的任务很简单：调用与Gruntfile在同一目录中 Grunt。这样带来的好处是，允许你在同一个系统上同时安装多个版本的 Grunt。
+
+安装grunt
+npm install -g grunt-cli
+
+打开cmd
+cd e:\git\ueditor
+
+grunt 
+
+ok
+
+安装sui出错
+
+(node:6172) fs: re-evaluating native module sources is not supported. If you are using the graceful-fs module, please update it to a more recent version.
+Running "jshint:gruntfile" (jshint) task
+Warning: Path must be a string. Received null Use --force to continue.
+
+Aborted due to warnings.
+
+//待研究
+grunt -f 
+构建到了  File .package/editor/editor-all.min.js created: 1.09 MB → 382.14 kB
+File .package/editor/editor-parse.min.js created: 37.2 kB → 14.71 kB
+--force, -f
+一种强制跳过警告信息的方式。
+如果像从警告中得到提示，就不要使用这个选项，可以根据提示信息修正代码
+
+
+
+
+
