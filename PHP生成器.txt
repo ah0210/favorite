@@ -1,0 +1,243 @@
+
+总览
+
+PHP生成器要求PHP版本5.5以上
+
+生成器提供了一种更容易的方法来实现简单的对象迭代，相比较定义类实现 Iterator 接口的方式，性能开销和复杂性大大降低。
+
+生成器允许你在 foreach 代码块中写代码来迭代一组数据而不需要在内存中创建一个数组, 那会使你的内存达到上限，或者会占据可观的处理时间。相反，你可以写一个生成器函数，就像一个普通的自定义函数一样, 和普通函数只返回一次不同的是, 生成器可以根据需要 yield 多次，以便生成需要迭代的值。
+
+一个简单的例子就是使用生成器来重新实现 range() 函数。 标准的 range() 函数需要在内存中生成一个数组包含每一个在它范围内的值，然后返回该数组, 结果就是会产生多个很大的数组。 比如，调用 range(0, 1000000) 将导致内存占用超过 100 MB。
+
+做为一种替代方法, 我们可以实现一个 xrange() 生成器, 只需要足够的内存来创建 Iterator 对象并在内部跟踪生成器的当前状态，这样只需要不到1K字节的内存。
+
+实例1:range()实现为生成器
+
+<?php
+function xrange($start, $limit, $step = 1) {
+        if ($start < $limit) {
+                if ($step <= 0) {
+                        throw new LogicException('Step must be +ve');
+                }
+
+                for ($i = $start; $i <= $limit; $i += $step) {
+                        yield $i;
+                }
+        } else {
+                if ($step >= 0) {
+                        throw new LogicException('Step must be -ve');
+                }
+
+                for ($i = $start; $i >= $limit; $i += $step) {
+                        yield $i;
+                }
+        }
+}
+
+/* 
+ * 注意下面range()和xrange()输出的结果是一样的。
+ */
+
+echo 'Single digit odd numbers from range():  ';
+foreach (range(1, 9, 2) as $number) {
+        echo "$number ";
+}
+echo "\n";
+
+echo 'Single digit odd numbers from xrange(): ';
+foreach (xrange(1, 9, 2) as $number) {
+        echo "$number ";
+}
+
+结果输出：
+
+Single digit odd numbers from range(): 1 3 5 7 9 
+Single digit odd numbers from xrange(): 1 3 5 7 9
+
+生成器语法
+
+一个生成器函数看起来像一个普通的函数，不同的是普通函数返回一个值，而一个生成器可以yield生成许多它所需要的值。
+
+当一个生成器被调用的时候，它返回一个可以被遍历的对象.当你遍历这个对象的时候(例如通过一个foreach循环)，PHP 将会在每次需要值的时候调用生成器函数，并在产生一个值之后保存生成器的状态，这样它就可以在需要产生下一个值的时候恢复调用状态。
+
+一旦不再需要产生更多的值，生成器函数可以简单退出，而调用生成器的代码还可以继续执行，就像一个数组已经被遍历完了。
+
+Note:
+一个生成器不可以返回值： 这样做会产生一个编译错误。然而return空是一个有效的语法并且它将会终止生成器继续执行。
+
+示例1:如果有返回值
+
+<?php 
+
+ function createGenerator()
+ {
+        for ($i=1;$i<5;$i++) {
+                yield $i;
+                return $i;
+        }
+ }
+
+ $generator = createGenerator();
+ foreach ($generator as $v) {
+        echo $v;
+ }
+
+结果：
+
+1
+
+并没有报错，不懂是个人理解问题还是生成器在PHP7中有调整，会终止生成器但是并没有报错。
+yield关键字
+
+生成器函数的核心是yield关键字。它最简单的调用形式看起来像一个return申明，不同之处在于普通return会返回值并终止函数的执行，而yield会返回一个值给循环调用此生成器的代码并且只是暂停执行生成器函数。
+
+示例2:简单生成器例子
+
+<?php
+function gen_one_to_three() {
+        for ($i = 1; $i <= 3; $i++) {
+                //注意变量$i的值在不同的yield之间是保持传递的。
+                yield $i;
+        }
+}
+
+$generator = gen_one_to_three();
+foreach ($generator as $value) {
+        echo "$value\n";
+}
+
+结果输出：
+
+1234
+
+注意：
+
+Note:
+在内部会为生成的值配对连续的整型索引，就像一个非关联的数组。
+
+当然并不是真的就是关联数组了，我们打印下看下：
+
+示例：
+
+<?php 
+
+ function createGenerator()
+ {
+        for ($i=1;$i<5;$i++) {
+                yield $i;
+        }
+ }
+
+ $generator = createGenerator();
+ var_dump($generator);
+ foreach ($generator as $v) {
+        echo $v;
+ }
+
+结果：
+
+object(Generator)#1 (0) { } 1234
+
+如果在表达式上下文上使用yield,必须使用括号包起来
+
+$data = (yield $value);
+
+如果没有用括号会报错：
+
+$data = yield $value;
+
+指定键名来生成值
+
+PHP的数组支持关联键值对数组，生成器也一样支持。所以除了生成简单的值，你也可以在生成值的时候指定键名。
+
+示例：生成非数字索引数组
+
+<?php
+/* 
+ * 下面每一行是用分号分割的字段组合，第一个字段将被用作键名。
+ */
+
+$input = <<<'EOF'
+1;PHP;Likes dollar signs
+2;Python;Likes whitespace
+3;Ruby;Likes blocks
+EOF;
+
+function input_parser($input) {
+        foreach (explode("\n", $input) as $line) {
+                $fields = explode(';', $line);
+                $id = array_shift($fields);
+
+                yield $id => $fields;
+        }
+}
+
+foreach (input_parser($input) as $id => $fields) {
+        echo "$id:\n";
+        echo "    $fields[0]\n";
+        echo "    $fields[1]\n";
+}
+
+结果输出：
+
+1:
+  PHP
+  Likes dollar signs
+2:
+      Python
+      Likes whitespace
+3:
+      Ruby
+      Likes blocks
+
+生成null值
+
+Yield可以在没有参数传入的情况下被调用来生成一个 NULL值并配对一个自动的键名。
+
+示例：
+
+<?php
+function gen_three_nulls() {
+        foreach (range(1, 3) as $i) {
+                yield;
+        }
+}
+
+var_dump(iterator_to_array(gen_three_nulls()));
+
+结果：
+
+array(3) {
+    [0]=>
+    NULL
+    [1]=>
+    NULL
+    [2]=>
+    NULL
+}
+
+使用引用来生成值
+
+生成函数可以像使用值一样来使用引用生成。这个和returning references from functions（从函数返回一个引用）一样：通过在函数名前面加一个引用符号。
+
+示例：使用引用来生成值
+
+<?php
+function &gen_reference() {
+        $value = 3;
+
+        while ($value > 0) {
+                yield $value;
+        }
+}
+
+/* 
+ * 我们可以在循环中修改$number的值，而生成器是使用的引用值来生成，所以gen_reference()内部的$value值也会跟着变化。
+ */
+foreach (gen_reference() as &$number) {
+        echo (--$number).'... ';
+}
+
+结果输出：
+
+2... 1... 0... 
