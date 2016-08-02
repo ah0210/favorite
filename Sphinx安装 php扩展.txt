@@ -3,7 +3,7 @@ Sphinx单一索引最大可包含1亿条记录，在1千万条记录情况下的
 
 Sphinx 安装
 
-首先,下载Sphinx安装包Sphinx 下载
+首先,下载Sphinx安装包Sphinx 下载 http://sphinxsearch.com/downloads/release/
 
 使用ftp软件上传到服务器,解压安装包
 
@@ -33,7 +33,7 @@ make &&  make install
 
 安装Sphinx PHP扩展
 
-Sphinx PHP 扩展下载地址下载
+Sphinx PHP 扩展下载地址下载 http://pecl.php.net/package/sphinx
 
 上传服务器,解压:
 
