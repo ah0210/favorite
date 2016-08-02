@@ -5,8 +5,6 @@ Sphinx 安装
 
 首先,下载Sphinx安装包Sphinx 下载 http://sphinxsearch.com/downloads/release/
 
-使用ftp软件上传到服务器,解压安装包
-
  tar zxvf sphinx-2.2.10-release.tar.gz
 
 进入解压后的安装包目录:
@@ -17,6 +15,11 @@ cd sphinx-2.2.10-release
 
 ./configure --prefix=/usr/local/sphinx –-with-mysql
 make && make install
+/*
+./configure --prefix=/usr/local/sphinx --with-mysql=/usr/local/mysql
+./configure --prefix=/usr/local/sphinx    --with-mysql-includes=/usr/include/mysql/  --with-mysql-libs=/usr/lib/mysql/
+make && make install
+*/
 
 安装完成之后,安装libsphinxclient.
 
@@ -27,19 +30,15 @@ libsphinxclient 安装
 cd api/libsphinxclient/
 
 编译安装:
+./configure --prefix=/usr/local/sphinx/libsphinxclient
+make && make install 
 
-./configure –prefix=/usr/local/sphinx
-make &&  make install
 
 安装Sphinx PHP扩展
 
 Sphinx PHP 扩展下载地址下载 http://pecl.php.net/package/sphinx
 
-上传服务器,解压:
-
 tar zxf sphinx-1.3.1.tgz
-
-进入目录:
 
 cd sphinx-1.3.1
 
@@ -49,9 +48,196 @@ cd sphinx-1.3.1
 
 然后编译安装:
 
-./configure --with-php-config=/usr/local/php/bin/php-config --with-sphinx=/usr/local/sphinx/
+./configure --with-sphinx=/usr/local/sphinx/libsphinxclient --with-php-config=php-config
 make && make install
+echo extension=sphinx.so > /etc/php.d/sphinx.ini
 
+
+安装scws及pecl扩展
+
+wget http://www.xunsearch.com/scws/down/scws-1.2.2.tar.bz2
+tar -jxf scws-1.2.2.tar.bz2
+cd scws-1.2.2
+./configure --prefix=/usr/local/scws/ 
+make && make install 
+cd ./phpext/ 
+phpize
+./configure  --with-php-config=php-config
+make && make install
+ 
+echo extension = scws.so   > /etc/php.d/scws.ini
+echo scws.default.charset = utf-8  >> /etc/php.d/scws.ini
+echo scws.default.fpath = /usr/local/scws/etc >> /etc/php.d/scws.ini
+
+安装词库
+wget http://www.xunsearch.com/scws/down/scws-dict-chs-utf8.tar.bz2
+tar xvjf scws-dict-chs-utf8.tar.bz2 -C /usr/local/scws/etc/ 
+chown www:www /usr/local/scws/etc/dict.utf8.xdb 
+
+
+创建数据库并写入信息
+
+DROP TABLE IF EXISTS `userinfo`;
+CREATE TABLE `userinfo` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `userid` int(11) unsigned NOT NULL DEFAULT '0',
+  `addtime` datetime NOT NULL,
+  `post` varchar(20) NOT NULL DEFAULT '',
+  `summary` text NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8;
+ 
+LOCK TABLES `userinfo` WRITE;
+INSERT INTO `userinfo` VALUES
+(NULL,1,'2012-06-01 00:24:54','运维总监','运维'),
+(NULL,2,'2014-08-19 10:24:54','大客户经理','客户'),
+(NULL,3,'2015-08-01 12:24:54','高级DBA工程师','DBA'),
+(NULL,4,'2013-08-01 00:24:54','高级PHP工程师','PHP');
+UNLOCK TABLES;
+ 
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE `users` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `username` varchar(20) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+ 
+ 
+LOCK TABLES `users` WRITE;
+INSERT INTO `users` VALUES
+(NULL,'张三'),
+(NULL,'张四'),
+(NULL,'李四'),
+(NULL,'王五');
+UNLOCK TABLES;
+
+8、配置sphinx
+	
+source users
+{
+    type            = mysql
+    sql_host        = localhost
+    sql_user        = root
+    sql_pass        = 123456
+    sql_db          = test
+    sql_port        = 3306  # optional, default is 3306
+    sql_query_pre = SET NAMES utf8 
+        sql_query_pre = SET SESSION query_cache_type=OFF 
+        sql_query = \
+    SELECT a.id, a.userid,b.username, UNIX_TIMESTAMP(a.addtime) AS addtime, a.post, a.summary \
+    FROM userinfo a left join users b on a.userid = b.id 
+    sql_attr_uint = userid 
+    sql_field_string = username 
+    sql_field_string = post 
+    sql_attr_timestamp = addtime
+    sql_attr_uint       = group_id
+    sql_attr_timestamp  = date_added
+    sql_ranged_throttle = 0
+}
+source src1throttled : users
+{
+    sql_ranged_throttle = 100
+}
+indexer
+{
+    mem_limit       = 128M
+}
+searchd
+{
+    listen          = 9312
+    log         = /usr/local/sphinx/var/log/searchd.log
+    query_log       = /usr/local/sphinx/var/log/query.log
+    read_timeout        = 5
+    client_timeout      = 300
+    max_children        = 30
+    persistent_connections_limit    = 30
+    pid_file        = /usr/local/sphinx/var/log/searchd.pid
+    seamless_rotate     = 1
+    preopen_indexes     = 1
+    unlink_old      = 1
+    mva_updates_pool    = 1M
+    max_packet_size     = 8M
+    max_filters     = 256
+    max_filter_values   = 4096
+    max_batch_queries   = 32
+    workers         = threads # for RT to work
+}
+index users
+{ 
+    source = users
+    path = /usr/local/sphinx/var/data/users
+    docinfo = extern 
+    mlock = 0 
+    morphology = none 
+    min_word_len = 1 
+    html_strip = 1 
+    charset_table = U+FF10..U+FF19->0..9, 0..9, U+FF41..U+FF5A->a..z, U+FF21..U+FF3A->a..z,A..Z->a..z, a..z, U+0149, U+017F, U+0138, U+00DF, U+00FF, U+00C0..U+00D6->U+00E0..U+00F6,U+00E0..U+00F6, U+00D8..U+00DE->U+00F8..U+00FE, U+00F8..U+00FE, U+0100->U+0101, U+0101,U+0102->U+0103, U+0103, U+0104->U+0105, U+0105, U+0106->U+0107, U+0107, U+0108->U+0109,U+0109, U+010A->U+010B, U+010B, U+010C->U+010D, U+010D, U+010E->U+010F, U+010F,U+0110->U+0111, U+0111, U+0112->U+0113, U+0113, U+0114->U+0115, U+0115, U+0116->U+0117,U+0117, U+0118->U+0119, U+0119, U+011A->U+011B, U+011B, U+011C->U+011D, U+011D,U+011E->U+011F, U+011F, U+0130->U+0131, U+0131, U+0132->U+0133, U+0133, U+0134->U+0135,U+0135, U+0136->U+0137, U+0137, U+0139->U+013A, U+013A, U+013B->U+013C, U+013C,U+013D->U+013E, U+013E, U+013F->U+0140, U+0140, U+0141->U+0142, U+0142, U+0143->U+0144,U+0144, U+0145->U+0146, U+0146, U+0147->U+0148, U+0148, U+014A->U+014B, U+014B,U+014C->U+014D, U+014D, U+014E->U+014F, U+014F, U+0150->U+0151, U+0151, U+0152->U+0153,U+0153, U+0154->U+0155, U+0155, U+0156->U+0157, U+0157, U+0158->U+0159, U+0159,U+015A->U+015B, U+015B, U+015C->U+015D, U+015D, U+015E->U+015F, U+015F, U+0160->U+0161,U+0161, U+0162->U+0163, U+0163, U+0164->U+0165, U+0165, U+0166->U+0167, U+0167,U+0168->U+0169, U+0169, U+016A->U+016B, U+016B, U+016C->U+016D, U+016D, U+016E->U+016F,U+016F, U+0170->U+0171, U+0171, U+0172->U+0173, U+0173, U+0174->U+0175, U+0175,U+0176->U+0177, U+0177, U+0178->U+00FF, U+00FF, U+0179->U+017A, U+017A, U+017B->U+017C,U+017C, U+017D->U+017E, U+017E, U+0410..U+042F->U+0430..U+044F, U+0430..U+044F,U+05D0..U+05EA, U+0531..U+0556->U+0561..U+0586, U+0561..U+0587, U+0621..U+063A, U+01B9,U+01BF, U+0640..U+064A, U+0660..U+0669, U+066E, U+066F, U+0671..U+06D3, U+06F0..U+06FF,U+0904..U+0939, U+0958..U+095F, U+0960..U+0963, U+0966..U+096F, U+097B..U+097F,U+0985..U+09B9, U+09CE, U+09DC..U+09E3, U+09E6..U+09EF, U+0A05..U+0A39, U+0A59..U+0A5E,U+0A66..U+0A6F, U+0A85..U+0AB9, U+0AE0..U+0AE3, U+0AE6..U+0AEF, U+0B05..U+0B39,U+0B5C..U+0B61, U+0B66..U+0B6F, U+0B71, U+0B85..U+0BB9, U+0BE6..U+0BF2, U+0C05..U+0C39,U+0C66..U+0C6F, U+0C85..U+0CB9, U+0CDE..U+0CE3, U+0CE6..U+0CEF, U+0D05..U+0D39, U+0D60,U+0D61, U+0D66..U+0D6F, U+0D85..U+0DC6, U+1900..U+1938, U+1946..U+194F, U+A800..U+A805,U+A807..U+A822, U+0386->U+03B1, U+03AC->U+03B1, U+0388->U+03B5, U+03AD->U+03B5,U+0389->U+03B7, U+03AE->U+03B7, U+038A->U+03B9, U+0390->U+03B9, U+03AA->U+03B9,U+03AF->U+03B9, U+03CA->U+03B9, U+038C->U+03BF, U+03CC->U+03BF, U+038E->U+03C5,U+03AB->U+03C5, U+03B0->U+03C5, U+03CB->U+03C5, U+03CD->U+03C5, U+038F->U+03C9,U+03CE->U+03C9, U+03C2->U+03C3, U+0391..U+03A1->U+03B1..U+03C1,U+03A3..U+03A9->U+03C3..U+03C9, U+03B1..U+03C1, U+03C3..U+03C9, U+0E01..U+0E2E,U+0E30..U+0E3A, U+0E40..U+0E45, U+0E47, U+0E50..U+0E59, U+A000..U+A48F, U+4E00..U+9FBF,U+3400..U+4DBF, U+20000..U+2A6DF, U+F900..U+FAFF, U+2F800..U+2FA1F, U+2E80..U+2EFF,U+2F00..U+2FDF, U+3100..U+312F, U+31A0..U+31BF, U+3040..U+309F, U+30A0..U+30FF,U+31F0..U+31FF, U+AC00..U+D7AF, U+1100..U+11FF, U+3130..U+318F, U+A000..U+A48F,U+A490..U+A4CF 
+    ngram_len = 1 
+    ngram_chars = U+4E00..U+9FBF, U+3400..U+4DBF, U+20000..U+2A6DF, U+F900..U+FAFF,U+2F800..U+2FA1F, U+2E80..U+2EFF, U+2F00..U+2FDF, U+3100..U+312F, U+31A0..U+31BF,U+3040..U+309F, U+30A0..U+30FF,U+31F0..U+31FF, U+AC00..U+D7AF, U+1100..U+11FF,U+3130..U+318F, U+A000..U+A48F, U+A490..U+A4CF 
+}
+common
+{
+}
+
+10、启动sphinx
+
+pkill searchd    
+/usr/local/sphinx/bin/indexer --config /usr/local/sphinx/etc/sphinx.conf --all 
+/usr/local/sphinx/bin/searchd --config /usr/local/sphinx/etc/sphinx.conf 
+
+ 11、测试
+	
+<?php 
+$key = "张三"; 
+$index = "users"; 
+ 
+$so = scws_new(); 
+$so->set_charset('utf-8');   
+$so->add_dict(ini_get('scws.default.fpath') . '/dict.utf8.xdb');
+$so->set_rule(ini_get('scws.default.fpath') . '/rules.utf8.ini'); 
+$so->set_ignore(true);
+$so->set_multi(false); 
+$so->set_duality(false);  
+// $so->add_dict('./dd.txt',SCWS_XDICT_TXT); 
+ 
+$so->send_text($key); 
+$words_array = $so->get_result(); 
+$words = ""; 
+foreach($words_array as $v) 
+{ 
+    $words = $words.'|('.$v['word'].')'; 
+} 
+   
+//加入全词 
+#$words = '('.$key.')'.$words; 
+$words = trim($words,'|'); 
+$so->close(); 
+echo '<p>输入：'.$key.'</p>'; 
+echo '<p>分词：'.$words.'</p>'; 
+ 
+$sc = new SphinxClient(); 
+$sc->SetServer('127.0.0.1',9312); 
+#$sc->SetMatchMode(SPH_MATCH_ALL); 
+$sc->SetMatchMode(SPH_MATCH_EXTENDED); 
+$sc->SetArrayResult(TRUE); 
+$res = $sc->Query($words,$index); 
+print_r($res); 
+
+ 参考：
+
+http://www.ibm.com/developerworks/cn/opensource/os-sphinx/
+
+http://ourmysql.com/archives/965
+
+http://www.cnblogs.com/yjf512/p/3581869.html
+
+http://www.coreseek.cn/docs/coreseek_4.1-sphinx_2.0.1-beta.html
+
+http://blog.51yip.com/mysql/1658.html
+
+http://www.cnblogs.com/chenpingzhao/p/4712345.html
+
+/*
 安装完成之后,进入/usr/local/sphinx/etc/目录下:
 
 cd /usr/local/sphinx/etc
@@ -74,4 +260,4 @@ cp sphinx.conf.dist sphinx.conf
 
 ln -s /usr/local/mysql/lib/libmysqlclient.so.18 /usr/lib64/libmysqlclient.so.18
 
-这样安装部分就完成了.
+*/
