@@ -1,0 +1,117 @@
+
+ 模型处理方式 select 等返回的是一个数组对象数据：
+ 
+ $nodes = Node::order('id desc');
+ 返回对象类似：
+ think\db\Query Object
+(
+    [connection:protected] => think\db\connector\Mysql Object
+        (
+            [PDOStatement:protected] => PDOStatement Object
+
+    [builder:protected] => mysql
+    [model:protected] => app\admin\model\Node
+    [table:protected] => 
+    [name:protected] => Node
+	
+对象处理：
+ $nodes->selsect();
+ //进行数据库处理 db\Query
+        //如果无缓存数据
+         if (!$resultSet) {
+            // 生成查询SQL
+            $sql = $this->builder()->select($options);
+			
+//获得数据后，检查如果是模型，会处理成对象数组，所以返回的是一个数组对象
+        // 返回结果处理
+        if ($resultSet) {
+            // 数据列表读取后的处理
+            if (!empty($this->model)) {
+                // 生成模型对象
+                $model = $this->model;
+                foreach ($resultSet as $key => $result) {
+				                    /** @var Model $result */
+                    $result = new $model($result);
+                    $result->isUpdate(true);
+                    // 关联查询
+                    if (!empty($options['relation'])) {
+                        $result->relationQuery($options['relation']);
+                    }
+                    $resultSet[$key] = $result;
+                }
+                if (!empty($options['with'])) {
+                    // 预载入
+                    $resultSet = $result->eagerlyResultSet($resultSet, $options['with'], is_object($resultSet) ? get_class($resultSet) : '');
+                }
+				
+//返回模型数组对象如下：
+Array
+(
+    [0] => app\admin\model\Node Object
+        (
+            [autoWriteTimestamp:protected] => 
+            [connection:protected] => Array
+                (
+                )
+
+            [name:protected] => Node
+            [table:protected] => 
+            [class:protected] => app\admin\model\Node
+            [error:protected] => 
+            [validate:protected] => 
+            [pk:protected] => 
+            [field:protected] => Array
+                (
+                )
+
+            [fieldType:protected] => Array
+                (
+                )
+
+            [visible:protected] => Array
+                (
+                )
+
+            [hidden:protected] => Array
+                (
+                )
+
+            [append:protected] => Array
+                (
+                )
+
+            [data:protected] => Array
+                (
+                    [id] => 59
+                     xxx
+					 xxxx
+                )
+
+            [change:protected] => Array
+                (
+                )
+
+            [auto:protected] => Array
+                (
+                )
+
+            [insert:protected] => Array
+                (
+                )
+
+            [update:protected] => Array
+                (
+                )
+
+            [createTime:protected] => create_time
+            [updateTime:protected] => update_time
+            [dateFormat:protected] => Y-m-d H:i:s
+            [type:protected] => Array
+                (
+                )
+
+            [isUpdate:protected] => 1
+            [updateWhere:protected] => 
+            [relation:protected] => 
+            [failException:protected] => 
+        )
