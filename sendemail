@@ -1,0 +1,112 @@
+
+
+搭建Postfix
+
+操作系统我个人比较喜欢CentOs,原生的系统都装有，没有的话 可以自己谷歌，这个很简单 ，跳过。需要注意的是，Postfix默认只对本地IP的Client开放，因为我们是用PHP调用Postfix发送，所以没有修改。
+配置PHP
+
+在php.ini中，修改sendmail_path 为 /usr/sbin/sendmail -t -i ， 这样PHP的Mail函数就可以发出正常的邮件了。
+用Mail函数直接发送会有些小麻烦，除了编码，它会把from写成 www-data@yourserverdomain.com 。没找到哪儿改，所以我就直接用PHPMailer发送了。
+
+    $mail = $GLOBALS['LP_MAILER'];$mail->CharSet = 'UTF-8';
+
+    $mail->Encoding = 'base64';
+
+    $mail->MessageID = $mid . '@'.c('mail_domain');$mail->SetFrom( c('mail_from') );
+
+    $mail->AddReplyTo( c('mail_from') );
+
+    $mail->Subject = $subject ;
+
+    $mail->WordWrap = 50;$mail->MsgHTML($body);$mail->AddAddress( $to );
+
+    if(!$mail->Send())
+
+    {
+
+        $GLOBALS['LP_MAILER_ERROR'] = $mail->ErrorInfo;
+
+        return false;
+
+    }else{
+
+        $mail->ClearAddresses();
+
+        return true;
+    }
+
+在PHPMailer中发送的时候是可以随意指定from的，不过别开心，from和实际发信用户不同时，邮件在很多系统都会被标记成垃圾邮件的。同时，邮件发送是一个耗时操作，不应该让web进程长时间等待。否则，稍微有点并发服务器就要挂了。怎么办？那就做个实时队列呗。
+Redis队列
+
+别用cron来做队列，土。其实Redis从某版本开始，提供了阻塞读的Pub/Sub服务。这个东西用来做实时队列非常好用，但是如果这redis服务压力很大的话，Pub/Sub是延迟很大的，所以在部署的时候一定要注意哦。要更好的使用这个队列，强烈建议安装phpredis的pecl扩展。
+Pub/Sub 服务的逻辑很简单。用命令行起一个PHP，订阅到一个Channel，这个PHP就一直等着。Web程序只要用Redis把数据Pub到同一个Channel里边，命令行的PHP就会获得数据并触发callback函数。
+
+订阅者：
+
+    ini_set('default_socket_timeout', -1);
+
+    $redis = new Redis();
+
+    $redis->connect('127.0.0.1',6379);
+
+    $channelname = c('mail_channel'); 
+
+    try{
+
+        $redis->subscribe(array($channelname), 'mailsend');
+
+    }catch(Exception $e){
+
+        echo $e->getMessage();
+    }
+
+顺便说下default_socket_timeout，如果你要用PHP长期连接socket，一定要设置这个值，不然会断的。上边的代码会让这个PHP一直保持运行状态，不会结束，这就是为什么我推荐pecl扩展的原因，不用写while，它自己会处理，有数据的时候，会回调 mailsend函数。
+
+    function mailsend($instance, $channelName, $message) 
+
+mailsend函数能获取以上参数，其中$message最重要。一般把数组序列化后，通过publish传递过来。
+
+发布者：
+
+    $redis = new Redis();
+
+    $redis->connect('127.0.0.1',6379);
+
+    $info = array();
+
+    $info['to'] = $to;
+
+    $info['subject'] = $subject;
+
+    $info['content'] = $content;
+
+    if($ret = $redis->publish( c('mail_channel') , serialize($info) )){
+
+           return send_result( 'send to ' . $to . ' add to queue' );
+    }else 
+        return send_error( $ret );
+
+很简单，用起来也非常方便。上边说过，因为调用mail函数的用户是www-data，所以真实的发信箱是www-data@yourserverdomain.com ，而你想显示为 easy@yourserverdomain.com 。要保证一致性其实很简单，用easy的用户启动订阅者PHP即可。
+
+    su easy
+    nohup php sub.php & 
+
+进一步适配反垃圾规则
+
+为了防止别人冒用你的邮箱地址给公共邮箱发信，你可以启用SPF和DKIM。
+如果只是发信，SPF不用安装什么的东西，直接在发信域名的DNS中加一条TXT记录就可以了。格式大概是这样：
+
+    v=spf1 ip4:106.3.32.60 ~all 
+
+这句话告诉了收件服务器，这个域名下的邮箱如果不是106.3.32.60 发过来的，直接标记为垃圾。
+DKIM相对复杂一些，它会对邮件内容进行签名，然后收件服务器通过DNS获取公钥，核对签名是否正确。
+
+具体的操作是给Postfix添加一个内容filter。详细说明参考这里：https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-dkim-with-postfix-on-debian-wheezy
+
+这些都做完以后，别人很难把自己发的垃圾邮件栽赃给你了。只要洁身自好，就可以顺利的通过反垃圾规则。
+
+参考：
+redis 订阅与发布
+http://redisbook.readthedocs.io/en/latest/feature/pubsub.html
+
+https://phpxy.com/article/72.html
