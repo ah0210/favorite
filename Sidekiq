@@ -1,0 +1,161 @@
+
+[http://www.cnblogs.com/richard1234/p/3829074.html]
+ Sidekiq in Rails
+介绍
+
+Sidekiq 是一个多线程的后台任务处理系统, 在其出来以前, 还存在一个名为 Resque 产品(Github 制造), 因为 Resque 是多进程模型, 所以当任务量变多的时候, Resque 所消耗的内存资源会非常的大, 所以就有了借助 Celluoid 来完成多线程形式的 Reqsue 也就是今天的 Sidekiq (2.15.xx)
+基本架构
+Job
+
+在 Sidekiq 中的 Job 指的是某一个任务的一次执行, 注意与我们通常意义上说 “一个 Job” 指的是一类 Job.
+Worker
+
+因为 Sidekiq 是使用 Celluoid 来完成其多线程的控制的, 而 Celluoid 是 Ruby 中的多线程模式 Actor 模式的实现, 所以在 Sidekiq 中的 Worker 我们以拟人的方式去理解. 我拥有一个工人, 不过有一点要区分的是这些 Worker 都是按照”操作手册”在执行任务, 所以他不会被限制在某一类任务上.
+Queue
+
+队列的意义在于区分任务并且让任务排队, Sidekiq 中将每一类的任务使用一个 Queue 来区分开.
+Redis Server
+
+指存储任务的 Redis 来源, 在 Sidekiq 2.x 时代其有一个瓶颈就是无论多少个 Sidekiq Instance 但只能拥有一个 Redis Server, 也就是任务处理的最大速度被限制在了单台 Redis 服务器每秒的处理速度, 大约在 5000 job/s, 但是在 Sidekiq 3.0 以后, 其扩展了 redis_pool 的参数, 每一个 Worker 可以选择使用 Redis Server.
+Redis Client
+
+Redis 作为一个任务提交者, 透过 Worker 向指定的 Redis Client 中提交任务.
+开发环境
+ubuntu 12.4, ruby 2.12, rails 4.1.1 ,redis 3.0.7 ,sidekiq 3.1.3
+安装配置
+
+    Gemfile添加 ：
+
+gem "redis", "~> 3.0.7"
+ 
+gem 'sidekiq'
+ 
+gem 'sinatra' # 用于使用自带的监控页面
+
+ 
+
+    在initializers下新建sidekiq.rb文件，用来初始化Redis和Sidekiq config。 initializers/sidekiq.rb ：
+
+复制代码
+
+redis_server = '127.0.0.1' # redis服务器
+redis_port = 6379 # redis端口
+redis_db_num = 0 # redis 数据库序号
+redis_namespace = 'highlander22_sidekiq' #命名空间，自定义的
+ 
+Sidekiq.configure_server do |config|
+  p redis_server  # 这个可以去掉
+  config.redis = { url: "redis://#{redis_server}:#{redis_port}/#{redis_db_num}", namespace: redis_namespace }
+end
+ 
+Sidekiq.configure_client do |config|
+  config.redis = { url: "redis://#{redis_server}:#{redis_port}/#{redis_db_num}", namespace: redis_namespace }
+end
+
+复制代码
+
+    sidekiq 启动配置文件 config/sidekiq.yml:
+
+复制代码
+
+:concurrency: 5 # 并发数
+:pidfile: tmp/pids/sidekiq.pid
+:logfile: ./log/sidekiq.log # 输出的日志地址
+:queues:
+- default # 写在队列参数中的, 表示让 sidekiq 处理这个 queue
+- [myqueue, 2] # 使用数组的形式写, 第一个参数为打开的 queue 的名称, 第二个为优先级
+ 
+development:
+:concurrency: 5
+staging:
+:concurrency: 10
+production:
+:concurrency: 20
+
+复制代码
+
+ 
+
+    首先将 worker 类放到 app/workers文件夹，app/workers/hard_worker.rb:
+
+复制代码
+
+class HardWorker
+  include Sidekiq::Worker
+ 
+  def perform(name, count)
+     # do somethings
+     puts 'Doing hard work'
+  end
+end
+
+复制代码
+
+
+    在控制器 action 或者 model 中调用 HardWorker.perform_async:
+
+HardWorker.perform_async('bob', 5)
+
+    sidekiq 配置参数 命令后加上 --help 可以看到其配置参数：
+
+复制代码
+
+richard@richard:~/ipucc/blog$ bundle exec sidekiq --help
+2014-06-12T10:16:35Z 22651 TID-6dezc INFO: sidekiq [options]
+-c, --concurrency INT processor threads to use
+-d, --daemon Daemonize process
+-e, --environment ENV Application environment
+-g, --tag TAG Process tag for procline
+-i, --index INT unique process index on this machine
+-q, --queue QUEUE[,WEIGHT] Queues to process with optional weights
+-r, --require [PATH|DIR] Location of Rails application with workers or file to require
+-t, --timeout NUM Shutdown timeout
+-v, --verbose Print more verbose output
+-C, --config PATH path to YAML config file
+-L, --logfile PATH path to writable logfile
+-P, --pidfile PATH path to pidfile
+-V, --version Print version and exit
+-h, --help Show help
+
+复制代码
+
+ 
+
+配置好这些东西，就可以对刚才写的HardWorker进行测试了。
+使用
+首先，要启动Sidekiq
+
+需要在rails项目目录下启动
+
+    可以通过linux cli的方式，使用添加参数来启动sidekiq: bundle exec sidekiq -q queue_name_1,queue_name_2
+    也可以将这些参数放到yml中，通过 -C 参数来启动: bundle exec sidekiq -C config/sidekiq.yml
+    也可以直接: sidekiq 或者 bundle exec sidekiq -e production
+    -r : 指定需要引入的那些自定义 worker 以及相关的 ruby 代码
+    -C : 指定配置文件的路径. 如果配置文件路径为 config/sidekiq.yml 则可忽略这个参数
+    -e : 指定当前的 sidekiq 以什么环境进行运行. (控制了使用什么配置信息)
+
+ 
+
+	
+richard@richard:~/ipucc/blog$ sidekiq
+
+
+　　
+使用Rails Console进行测试
+
+richard@richard:~/ipucc/blog$ rails c
+Loading development environment (Rails 4.1.1)
+2.1.2 :002 > HardWorker.perform_async 'Hello World', 1 # 调用perform
+=> "2f68a6b62418f34670b6afdc"
+2.1.2 :003 >
+
+使用自带的监控页面
+
+route.rb 添加 ：
+
+require 'sidekiq/web'
+mount Sidekiq::Web => '/sidekiq'
+
+访问 http://localhost:3000/sidekiq/retries 进入监控页面
+
+这样，就可以在页面上看到sidekiq的运行情况了。更多详情见：sidekiq Monitoring
