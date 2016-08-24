@@ -1,0 +1,86 @@
+
+安装 pcntl 进程控制 扩展
+  --enable-pcntl
+或者
+
+ sh-3.2# cd php-5.3.15/ext/pcntl/
+ sh-3.2# phpize && ./configure && make install
+ sh-3.2# echo "extension=pcntl.so" >> /etc/php.ini
+重启 nginx 
+
+php -m | grep pcntl
+ pcntl
+ 
+ https://github.com/huyanping/simple-fork-php
+ 
+ 一个例子：
+http://www.huyanping.cn/%E5%9F%BA%E4%BA%8Epcntl%E7%9A%84php%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/
+	
+<?php
+/**
+ * @author:Jenner
+ * @date 2014-01-14
+ */
+class JetMultiProcess {
+ 
+    //最大队列长度
+    private $size;
+ 
+    private $curSize;
+ 
+    //生产者
+    private $producer;
+ 
+    //消费者
+    private $worker;
+ 
+    /**
+     * 构造函数
+     * @param string $worker 需要创建的消费者类名
+     * @param int $size 最大子进程数量
+     * @param $producer 需要创建的消费者类名
+     */
+    public function __construct($producer, $worker, $size=10){
+        $this->producer = new $producer;
+        $this->worker = $worker;
+        $this->size = $size;
+        $this->curSize = 0;
+    }
+ 
+    public function start(){
+ 
+        $producerPid = pcntl_fork();
+        if ($producerPid == -1) {
+            die("could not fork");
+        } else if ($producerPid) {// parent
+ 
+            while(true){
+                $pid = pcntl_fork();
+                if ($pid == -1) {
+                    die("could not fork");
+                } else if ($pid) {// parent
+ 
+                    $this->curSize++;
+                    if($this->curSize>=$this->size){
+                        $sunPid = pcntl_wait($status);
+                                                $this->curSize--;
+                    }
+ 
+                } else {// worker
+ 
+                    $worker = new $this->worker;
+                    $worker->run();
+                    exit();
+                }
+            }
+ 
+        } else {// producer
+            $this->producer->run();
+            exit();
+        }
+    }
+}
+
+以上代码，通过size控制多进程数量，通过构造函数传入生产者和消费者的类型。父进程第一次fork产生一个子进程生产者，然后再进行size次fork创建多个消费者。类似方法可以创建多个生产者和多个消费者协同工作。生产者和消费者都必须实现run方法，并在run方法中创建死循环。循环写入和读取队列进行协同工作。该类没有提供进程间通信的功能。通信需要在生产者和消费者类中实现。这样能够使得进程控制的代码看起来更加简洁。
+
+该模型已经应用于大型项目，每天承载数万次的任务写入。
