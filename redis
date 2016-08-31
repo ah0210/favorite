@@ -1,0 +1,148 @@
+
+
+CentOS7安装配置redis-3.0.0
+http://www.cnblogs.com/kreo/p/4399612.html
+
+
+ 
+3.redis cluster集群搭建
+
+建立本机测试环境
+
+建立运行目录
+复制代码
+
+#建立redis运行目录
+mkdir -p redis-server/7000/
+#复制默认的配置文档
+cp redis-3.0.0/redis.conf redis-server/redis.default.conf
+#把编译好的server复制到运行目录
+cp redis-3.0.0/src/redis-server redis-server/7000/
+
+复制代码
+
+建立独立配置文件
+
+#在7000目录下建立redis的配置文档
+vim redis-server/7000/redis.conf
+
+文件内容
+复制代码
+
+#redis-server/7000/redis.conf
+include /root/redis-server/redis.default.conf
+pidfile /var/run/redis-7000.pid
+port 7000
+cluster-enabled yes
+cluster-config-file redis-node-7000.conf
+cluster-node-timeout 5000
+appendonly yes
+
+复制代码
+
+复制运行目录(模拟集群环境)
+复制代码
+
+#复制目录
+cp -R 7000/ 7001/
+cp -R 7000/ 7002/
+cp -R 7000/ 7003/
+cp -R 7000/ 7004/
+cp -R 7000/ 7005/
+
+复制代码
+
+修改相应配置文件的端口和文件名
+
+建立启动脚本 redis-server/redis-start.sh
+复制代码
+
+#!/bin/sh
+/root/redis-server/7000/redis-server /root/redis-server/7000/redis.conf &
+/root/redis-server/7001/redis-server /root/redis-server/7001/redis.conf &
+/root/redis-server/7002/redis-server /root/redis-server/7002/redis.conf &
+/root/redis-server/7003/redis-server /root/redis-server/7003/redis.conf &
+/root/redis-server/7004/redis-server /root/redis-server/7004/redis.conf &
+/root/redis-server/7005/redis-server /root/redis-server/7005/redis.conf &
+
+复制代码
+
+ 
+
+配置集群
+
+安装ruby
+
+yum install ruby-devel.x86_64
+
+安装redis gem 
+复制代码
+
+# gem install redis
+Fetching: redis-3.2.1.gem (100%)
+Successfully installed redis-3.2.1
+Parsing documentation for redis-3.2.1
+Installing ri documentation for redis-3.2.1
+1 gem installed
+
+复制代码
+
+使用脚本建立集群机制  
+
+在create的时候,加上参数--replicas 1 表示为每个master分配一个salve,如例子,则是3个master 3个salve
+复制代码
+
+# ./redis-trib.rb create 127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005
+>>> Creating cluster
+Connecting to node 127.0.0.1:7000: OK
+Connecting to node 127.0.0.1:7001: OK
+Connecting to node 127.0.0.1:7002: OK
+Connecting to node 127.0.0.1:7003: OK
+Connecting to node 127.0.0.1:7004: OK
+Connecting to node 127.0.0.1:7005: OK
+>>> Performing hash slots allocation on 6 nodes...
+Using 6 masters:
+127.0.0.1:7000
+127.0.0.1:7001
+127.0.0.1:7002
+127.0.0.1:7003
+127.0.0.1:7004
+127.0.0.1:7005
+M: f3dd250e4bc145c8b9f864e82f65e00d1ba627be 127.0.0.1:7000
+   slots:0-2730 (2731 slots) master
+M: 1ba602ade59e0770a15128b193f2ac29c251ab5e 127.0.0.1:7001
+   slots:2731-5460 (2730 slots) master
+M: 4f840a70520563c8ef0d7d1cc9d5eaff6a1547a2 127.0.0.1:7002
+   slots:5461-8191 (2731 slots) master
+M: 702adc7ae9caf1f6702987604548c6fc1d22e813 127.0.0.1:7003
+   slots:8192-10922 (2731 slots) master
+M: 4f87a11d2ea6ebe9caf02c9dbd827a3dba8a53cf 127.0.0.1:7004
+   slots:10923-13652 (2730 slots) master
+M: 216bbb7da50bd130da16a327c76dc6d285f731b3 127.0.0.1:7005
+   slots:13653-16383 (2731 slots) master
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join...
+>>> Performing Cluster Check (using node 127.0.0.1:7000)
+M: f3dd250e4bc145c8b9f864e82f65e00d1ba627be 127.0.0.1:7000
+   slots:0-2730 (2731 slots) master
+M: 1ba602ade59e0770a15128b193f2ac29c251ab5e 127.0.0.1:7001
+   slots:2731-5460 (2730 slots) master
+M: 4f840a70520563c8ef0d7d1cc9d5eaff6a1547a2 127.0.0.1:7002
+   slots:5461-8191 (2731 slots) master
+M: 702adc7ae9caf1f6702987604548c6fc1d22e813 127.0.0.1:7003
+   slots:8192-10922 (2731 slots) master
+M: 4f87a11d2ea6ebe9caf02c9dbd827a3dba8a53cf 127.0.0.1:7004
+   slots:10923-13652 (2730 slots) master
+M: 216bbb7da50bd130da16a327c76dc6d285f731b3 127.0.0.1:7005
+   slots:13653-16383 (2731 slots) master
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+
+复制代码
+
+ 如果需要全部重新自动配置,则删除所有的配置好的cluster-config-file,重新启动所有的redis-server,然后重新执行配置命令即可
