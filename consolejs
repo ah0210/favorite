@@ -1,0 +1,120 @@
+
+所有Console Api
+<script type="text/javascript">
+    console.dir(console);
+</script>
+复制代码
+显示简单信息
+<script type="text/javascript">
+    console.log('hello world');
+    console.info('信息');
+    console.error('错误');
+    console.warn('警告');
+</script>   
+复制代码
+占位符
+<script type="text/javascript">
+    console.log('%d-%d-%d,%s',2016,08,21,'中国女排夺的冠军！');
+</script>   
+复制代码
+统计代码执行次数
+<script type="text/javascript">
+    function getInfo()
+    {
+        console.count('执行次数:');
+    }
+    getInfo();
+    getInfo();
+    getInfo();
+    getInfo();
+</script>  
+复制代码
+显示分组信息
+<script type="text/javascript">
+    console.group("第一组信息");
+        console.log('第一组：自定义消息1');
+        console.log('第一组：自定义消息2');
+        console.log('第一组：自定义消息3');
+    console.groupEnd();
+    console.group("第二组信息");
+        console.log('第二组：自定义消息1');
+        console.log('第二组：自定义消息2');
+        console.log('第二组：自定义消息3');
+    console.groupEnd();
+</script>  
+复制代码
+显示对象信息
+<script type="text/javascript">
+    var TomObj = {
+        name  : "Tom",
+        sex   : "男",
+        age   : '31',
+        hobby : "coding..."
+    };
+    console.dir(TomObj);
+</script>  
+复制代码
+显示页面信息
+<div id="console">
+    <h1>console api</h1>
+</div>
+<script type="text/javascript">
+    var info = document.getElementById('console');
+    console.dirxml(info);
+</script> 
+复制代码
+判断表达式或变量是否为真
+<script type="text/javascript">
+    var code = 200;
+    console.assert(code);
+    console.assert(code == 200);
+    console.assert(code == 500);
+</script>
+复制代码
+追踪函数的调用轨迹
+<script type="text/javascript">
+    function add(a,b) {
+        console.trace();
+        return a + b;
+    }
+    add(1,2);
+    add(2,3);
+    add(3,4);
+</script>
+复制代码
+计时功能
+<script type="text/javascript">
+    console.time("控制台计时器") ;
+    console.log('Start');
+    for(var i=0;i<1000;i++) {
+        for(var j=0;j<1000;j++){
+        }
+    }
+    console.log('End');
+    console.timeEnd("控制台计时器");
+</script>    
+复制代码
+分析性能
+<script type="text/javascript">
+    function getNews() {
+        _getAjax_1();
+        _getAjax_3();
+    }
+    function _getAjax_1 () {
+        for(var i=0;i<10;i++){
+            _getAjax_2();
+        }
+    }
+    function _getAjax_2 () {
+        for(var i=0;i<100;i++){
+            _getAjax_3()
+        }
+    }
+    function _getAjax_3 () {
+        for(var i=0;i<1000;i++){
+        }
+    }
+    console.profile('性能分析器');
+    getNews();
+    console.profileEnd();
+</script>  
