@@ -7,3 +7,6 @@ https://www.google.com/ncr
 
 css sprite 
 http://css.spritegen.com/
+
+win事件查看
+eventvwr.exe
