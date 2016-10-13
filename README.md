@@ -18,6 +18,4 @@ PHPGTK
 http://gtk.php.net/download.php?language=en-US
 
 
-
-https://www.gnome.org/
-ftp://ftp.gnome.org/pub/gnome/sources/
+https://www.gnupg.org/download/index.en.html
