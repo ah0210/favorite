@@ -18,4 +18,10 @@ PHPGTK
 http://gtk.php.net/download.php?language=en-US
 
 
-https://www.gnupg.org/download/index.en.html
+http://winbinder.org/download.php
+
+下载解压最新版
+\WinBinder.2010.10.14\phpcode\examples，任找一个.phpw扩展名的文件
+选择打开方式为： 
+WinBinder.2010.10.14\binaries\php533\php-win.exe
+
