@@ -13,3 +13,8 @@ eventvwr.exe
 
 融云
 http://www.rongcloud.cn/docs/
+
+PHPGTK
+http://gtk.php.net/download.php?language=en-US
+
+ftp://ftp.gnome.org/pub/gnome/sources/
