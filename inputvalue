@@ -1,0 +1,77 @@
+获取input的checked值是否为true：
+
+第一种：
+
+if($("input[name=item][value='val']").attr('checked')==true)  //判断是否已经打勾    --注：name即控件name属性,value即控件value属性
+
+ 
+第二种：
+可以不指定属性值，因一组checkbox的value值都会保存其在数据库中对应的id，最好写成如下方式：
+if($("input[name=row_checkbox]").attr('checked')==true)
+ 
+第三种：
+if($("[name=row_checkbox]").attr('checked')==true)  --注：name即控件name属性
+ 
+jquery radio取值,checkbox取值,select取值,radio选中,checkbox选中,select选中,及其相关文章分类:Web前端：
+radio:
+获取一组radio被选中项的值：var item = $('input[name=items][checked]').val();   --注：name即控件name属性
+radio单选组的第二个元素为当前选中项 ：$('input[@name=items]').get(1).checked = true;
+                                                     或 $('input[name=items]').attr("checked", '1′);
+radio的value = 'val'的元素为当前选中项：$('input[name=items] [value='val']').attr("checked","checked");
+radio设置value=2的元素为当前选中项：$("input[type=radio]").attr("checked",'2′);
+radio被选中项的value值：$("input[name='radio_name'][checked]").val();
+根据Value值设置Radio为选中状态：$("input[name='radio_name'][value='要选中Radio的Value值'").attr("checked",true);
+ 
+ 
+select:
+获取select被选中项的文本：var item = $("select[@name=items] option[@selected]").text();
+                                     或 var item = $("select[name=items]").find("option:selected").text();
+select下拉框的第二个元素为当前选中值：$('#select_id')[0].selectedIndex = 1;     --注：select_id'即控件的id属性
+select下拉框value = 'val'的元素为当前选中项：$("select[name=items] option[value='val']").attr("selected","selected");
+select设置value=-sel3的项目为当前选中项：$("#sel").attr("value",'-sel3′);    --注：sel即select控件的id属性
+添加下拉框的option：$("<option value='1′>1111</option><option value='2′>2222</option>").appendTo("#sel");
+select清空：$("#sel").empty();
+ 
+ 
+checkbox:
+checkbox的第二个元素被打勾：$("input[name=items]").get(1).checked = true;   //打勾
+checkbox的value='val'的元素打勾：$("input[name=item][value='val']").attr("checked",true);
+                                                 或$("input[name=item][value='val']").attr("checked","checked");
+判断checkbox是否已经打勾：if($("input[name=item][value='val']").attr('checked')==true)
+ 
+jQuery获取CheckBox选择的Value值：
+//选择被选中CheckBox元素的集合 如果你想得到Value值你需要遍历这个集合
+$($("input[name='checkbox_name'][checked]")).each(function(){
+　　arrChk+=this.value + ',';    //遍历被选中CheckBox元素的集合 得到Value值
+});
+ 
+checkbox的checked属性：
+$("#checkbox_id").attr("checked"); //获取一个CheckBox的状态(有没有被选中,返回true/false)
+$("#checkbox_id").attr("checked",true); //设置一个CheckBox的状态为选中(checked=true)
+$("#checkbox_id").attr("checked",false); //设置一个CheckBox的状态为不选中(checked=false)
+//根据上面三条,分析分析这句代码的意思：
+$("input[name='checkbox_name']").attr("checked",$("#checkbox_id").attr("checked"));
+--注：根据控件checkbox_id的checked状态为name='checkbox_name'的input赋相同的checked状态
+ 
+ 
+ 
+获取值： 
+文本框,文本区域：$("#txt").attr("value");
+多选框checkbox：$("input[name='checkbox':checked]").each(function(){
+　　　　　　　　　　var val = $(this).val();
+　　　　　　　　  });
+单选组radio：$("input[type=radio][checked]").val();
+下拉框select的value值：$('select').val();
+下拉框select选中的text 值：$("select").find("option:selected").text();
+文本框,文本区域：$("#txt").attr("value","); //清空内容
+                        $("#txt").attr("value",'11′); //填充内容
+ 
+事件：
+当对象text_id获取焦点时触发：$("#text_id").focus(function(){//code...});
+当对象text_id失去焦点时触发：$("#text_id").blur(function(){//code...});
+ 
+ 
+其他：
+使文本框的Vlaue值成选中状态：$("#text_id").select();
+$("#text_id").val().split(","); //将Text的Value值以','分隔返回一个数组
+ 
