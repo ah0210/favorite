@@ -1,6 +1,21 @@
 # favorite
 收藏
 
+jQuery监听文件上传实现进度条效果http://www.imooc.com/article/5879
+
+var xhr=new XMLHttpRequest(); xhr.upload.onprogress=function(e){}
+var xhrOnProgress=function(fun) { 
+xhrOnProgress.onprogress = fun; //绑定监听 //使用闭包实现监听绑
+ return function() { //通过$.ajaxSettings.xhr();获得XMLHttpRequest对象
+ var xhr = $.ajaxSettings.xhr(); //判断监听函数是否为函数
+ if (typeof xhrOnProgress.onprogress !== 'function') return xhr; //如果有监听函数并且xhr对象支持绑定时就把监听函数绑定上去
+ if (xhrOnProgress.onprogress && xhr.upload) { xhr.upload.onprogress = xhrOnProgress.onprogress; } return xhr; } }
+$.ajax({ url: url, type: 'POST', xhr:xhrOnProgress(function(e){ var percent=e.loaded / e.total;//计算百分比 var percentComplete = ((e.loaded / e.total) || 0) * 100; }) });
+
+
+jQuery的deferred对象详解 - 阮一峰的网络日志
+http://www.ruanyifeng.com/blog/2011/08/a_detailed_explanation_of_jquery_deferred_object.html
+
 
 禁止google自动跳转hk
 https://www.google.com/ncr
